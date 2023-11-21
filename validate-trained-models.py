@@ -24,8 +24,7 @@ def write_validation_loss(file_name, losses_accu, experiment_name, epoch, write_
 
 
 def main():
-    # device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    device = torch.device('cpu')
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
     parser = argparse.ArgumentParser(description='Training of HiDDeN nets')
     # parser.add_argument('--size', '-s', default=128, type=int, help='The size of the images (images are square so this is height and width).')
@@ -46,7 +45,7 @@ def main():
     for run_name in completed_runs:
         current_run = os.path.join(args.runs_root, run_name)
         print(f'Run folder: {current_run}')
-        options_file = os.path.join(current_run, 'options-and-config.pickle')
+        options_file = os.path.join(current_run, 'trained/options-and-config.pickle')
         train_options, hidden_config, noise_config = utils.load_options(options_file)
         train_options.train_folder = os.path.join(args.data_dir, 'val')
         train_options.validation_folder = os.path.join(args.data_dir, 'val')

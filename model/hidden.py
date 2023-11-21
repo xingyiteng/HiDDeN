@@ -67,8 +67,11 @@ class Hidden:
             self.optimizer_discrim.zero_grad()
             # train on cover
             d_target_label_cover = torch.full((batch_size, 1), self.cover_label, device=self.device)
+            d_target_label_cover = d_target_label_cover.float()
             d_target_label_encoded = torch.full((batch_size, 1), self.encoded_label, device=self.device)
+            d_target_label_encoded = d_target_label_encoded.float()
             g_target_label_encoded = torch.full((batch_size, 1), self.cover_label, device=self.device)
+            g_target_label_encoded = g_target_label_encoded.float()
 
             d_on_cover = self.discriminator(images)
             d_loss_on_cover = self.bce_with_logits_loss(d_on_cover, d_target_label_cover)
@@ -140,8 +143,11 @@ class Hidden:
         self.discriminator.eval()
         with torch.no_grad():
             d_target_label_cover = torch.full((batch_size, 1), self.cover_label, device=self.device)
+            d_target_label_cover = d_target_label_cover.float()
             d_target_label_encoded = torch.full((batch_size, 1), self.encoded_label, device=self.device)
+            d_target_label_encoded = d_target_label_encoded.float()
             g_target_label_encoded = torch.full((batch_size, 1), self.cover_label, device=self.device)
+            g_target_label_encoded = g_target_label_encoded.float()
 
             d_on_cover = self.discriminator(images)
             d_loss_on_cover = self.bce_with_logits_loss(d_on_cover, d_target_label_cover)

@@ -1,15 +1,12 @@
-import torch
-import torch.nn
 import argparse
-import os
-import numpy as np
-from options import HiDDenConfiguration
+
+import torch.nn
+import torchvision.transforms.functional as TF
+from PIL import Image
 
 import utils
 from model.hidden import *
 from noise_layers.noiser import Noiser
-from PIL import Image
-import torchvision.transforms.functional as TF
 
 
 def randomCrop(img, height, width):
@@ -30,9 +27,9 @@ def main():
     parser = argparse.ArgumentParser(description='Test trained models')
     parser.add_argument('--options-file', '-o', default='options-and-config.pickle', type=str,
                         help='The file where the simulation options are stored.')
-    parser.add_argument('--checkpoint-file', '-c', required=True, type=str, help='Model checkpoint file')
+    parser.add_argument('--checkpoint-file', '-c', default='second--epoch-1.pyt', type=str, help='Model checkpoint file')
     parser.add_argument('--batch-size', '-b', default=12, type=int, help='The batch size.')
-    parser.add_argument('--source-image', '-s', required=True, type=str,
+    parser.add_argument('--source-image', '-s', default='test.jpg', type=str,
                         help='The image to watermark')
     # parser.add_argument('--times', '-t', default=10, type=int,
     #                     help='Number iterations (insert watermark->extract).')
@@ -40,9 +37,9 @@ def main():
     args = parser.parse_args()
 
     train_options, hidden_config, noise_config = utils.load_options(args.options_file)
-    noiser = Noiser(noise_config)
+    noiser = Noiser(noise_config, device)
 
-    checkpoint = torch.load(args.checkpoint_file)
+    checkpoint = torch.load(args.checkpoint_file, map_location=device)
     hidden_net = Hidden(hidden_config, device, noiser, None)
     utils.model_from_checkpoint(hidden_net, checkpoint)
 
