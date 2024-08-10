@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from SSIM import SSIM
 from options import HiDDenConfiguration
 from model.discriminator import Discriminator
 from model.encoder_decoder import EncoderDecoder
@@ -32,10 +33,13 @@ class Hidden:
 
         self.config = configuration
         self.device = device
-
+        # SSIM
+        self.ssim_loss = SSIM()
+        # 二元交叉熵
         self.bce_with_logits_loss = nn.BCEWithLogitsLoss().to(device)
         self.mse_loss = nn.MSELoss().to(device)
 
+        self.ssim_weight = 0.1
         # Defined the labels used for training the discriminator/adversarial loss
         self.cover_label = 1
         self.encoded_label = 0
@@ -49,7 +53,6 @@ class Hidden:
             decoder_final.weight.register_hook(tb_logger.grad_hook_by_name('grads/decoder_out'))
             discrim_final = self.discriminator._modules['linear']
             discrim_final.weight.register_hook(tb_logger.grad_hook_by_name('grads/discrim_out'))
-
 
     def train_on_batch(self, batch: list):
         """
@@ -92,14 +95,18 @@ class Hidden:
             g_loss_adv = self.bce_with_logits_loss(d_on_encoded_for_enc, g_target_label_encoded)
 
             if self.vgg_loss == None:
+                # 编码图像的均方误差
                 g_loss_enc = self.mse_loss(encoded_images, images)
             else:
                 vgg_on_cov = self.vgg_loss(images)
                 vgg_on_enc = self.vgg_loss(encoded_images)
                 g_loss_enc = self.mse_loss(vgg_on_cov, vgg_on_enc)
-
+            # 计算结构相似性
+            g_loss_enc_ssim = self.ssim_loss(encoded_images, images)
+            # 解码消息的均方误差
             g_loss_dec = self.mse_loss(decoded_messages, messages)
-            g_loss = self.config.adversarial_loss * g_loss_adv + self.config.encoder_loss * g_loss_enc \
+            g_loss = self.config.adversarial_loss * g_loss_adv + self.ssim_weight * (
+                        1 - g_loss_enc_ssim) + self.config.encoder_loss * g_loss_enc \
                      + self.config.decoder_loss * g_loss_dec
 
             g_loss.backward()
@@ -116,7 +123,8 @@ class Hidden:
             'bitwise-error  ': bitwise_avg_err,
             'adversarial_bce': g_loss_adv.item(),
             'discr_cover_bce': d_loss_on_cover.item(),
-            'discr_encod_bce': d_loss_on_encoded.item()
+            'discr_encod_bce': d_loss_on_encoded.item(),
+            'encoded_ssim   ': g_loss_enc_ssim.item()
         }
         return losses, (encoded_images, noised_images, decoded_messages)
 
@@ -159,7 +167,7 @@ class Hidden:
 
             d_on_encoded_for_enc = self.discriminator(encoded_images)
             g_loss_adv = self.bce_with_logits_loss(d_on_encoded_for_enc, g_target_label_encoded)
-
+            g_loss_enc_ssim = self.ssim_loss(images, encoded_images)
             if self.vgg_loss is None:
                 g_loss_enc = self.mse_loss(encoded_images, images)
             else:
@@ -168,7 +176,8 @@ class Hidden:
                 g_loss_enc = self.mse_loss(vgg_on_cov, vgg_on_enc)
 
             g_loss_dec = self.mse_loss(decoded_messages, messages)
-            g_loss = self.config.adversarial_loss * g_loss_adv + self.config.encoder_loss * g_loss_enc \
+            g_loss = self.config.adversarial_loss * g_loss_adv + self.ssim_weight * (
+                        1 - g_loss_enc_ssim) + self.config.encoder_loss * g_loss_enc \
                      + self.config.decoder_loss * g_loss_dec
 
         decoded_rounded = decoded_messages.detach().cpu().numpy().round().clip(0, 1)
@@ -182,7 +191,10 @@ class Hidden:
             'bitwise-error  ': bitwise_avg_err,
             'adversarial_bce': g_loss_adv.item(),
             'discr_cover_bce': d_loss_on_cover.item(),
-            'discr_encod_bce': d_loss_on_encoded.item()
+            'discr_encod_bce': d_loss_on_encoded.item(),
+            'encoded_ssim   ': g_loss_enc_ssim.item(),
+            'PSNR           ': 10 * torch.log10(4 / g_loss_enc).item(),
+            'SSIM           ': g_loss_enc_ssim
         }
         return losses, (encoded_images, noised_images, decoded_messages)
 

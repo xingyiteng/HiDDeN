@@ -25,11 +25,11 @@ def main():
         device = torch.device('cpu')
 
     parser = argparse.ArgumentParser(description='Test trained models')
-    parser.add_argument('--options-file', '-o', default='options-and-config.pickle', type=str,
+    parser.add_argument('--options-file', '-o', default='experiments/no-noise adam-eps-1e-4/options-and-config.pickle', type=str,
                         help='The file where the simulation options are stored.')
-    parser.add_argument('--checkpoint-file', '-c', default='second--epoch-1.pyt', type=str, help='Model checkpoint file')
+    parser.add_argument('--checkpoint-file', '-c', default='experiments/no-noise adam-eps-1e-4/checkpoints/no-noise--epoch-200.pyt', type=str, help='Model checkpoint file')
     parser.add_argument('--batch-size', '-b', default=12, type=int, help='The batch size.')
-    parser.add_argument('--source-image', '-s', default='test.jpg', type=str,
+    parser.add_argument('--source-image', '-s', default='test.png', type=str,
                         help='The image to watermark')
     # parser.add_argument('--times', '-t', default=10, type=int,
     #                     help='Number iterations (insert watermark->extract).')
@@ -45,8 +45,8 @@ def main():
 
 
     image_pil = Image.open(args.source_image)
-    image = randomCrop(np.array(image_pil), hidden_config.H, hidden_config.W)
-    image_tensor = TF.to_tensor(image).to(device)
+    # image = randomCrop(np.array(image_pil), hidden_config.H, hidden_config.W)
+    image_tensor = TF.to_tensor(image_pil).to(device)
     image_tensor = image_tensor * 2 - 1  # transform from [0, 1] to [-1, 1]
     image_tensor.unsqueeze_(0)
 
