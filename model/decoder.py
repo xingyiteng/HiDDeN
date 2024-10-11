@@ -1,4 +1,6 @@
 import torch.nn as nn
+
+from model.mdfa import MDFA
 from options import HiDDenConfiguration
 from model.conv_bn_relu import ConvBNRelu
 
@@ -18,10 +20,10 @@ class Decoder(nn.Module):
         for _ in range(config.decoder_blocks - 1):
             layers.append(ConvBNRelu(self.channels, self.channels))
 
-        # layers.append(block_builder(self.channels, config.message_length))
-        layers.append(ConvBNRelu(self.channels, config.message_length))
+        layers.append(MDFA(dim_in=self.channels, dim_out=config.message_length))
+        # layers.append(ConvBNRelu(self.channels, config.message_length))
 
-        # 将输入特征图池化为一个指定大小的输出。
+        # 将输入特征图池化为一个指定大小的输出，方便后续处理（如全连接层的输入）
         layers.append(nn.AdaptiveAvgPool2d(output_size=(1, 1)))
         self.layers = nn.Sequential(*layers)
 

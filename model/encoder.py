@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from model.conv_bn_relu import ConvBNRelu
+from model.mdfa import MDFA
 from options import HiDDenConfiguration
 
 
@@ -28,6 +29,9 @@ class Encoder(nn.Module):
         # 64通道 => 3通道 图片大小不变
         self.final_layer = nn.Conv2d(self.conv_channels, 3, kernel_size=1)
 
+        # MDFA
+        self.mdfa = MDFA(dim_in=(self.conv_channels + 3 + config.message_length), dim_out=self.conv_channels)
+
     def forward(self, image, message):
         expanded_message = message.unsqueeze(-1)
         expanded_message.unsqueeze_(-1)
@@ -41,6 +45,8 @@ class Encoder(nn.Module):
         # concat 的形状将是 (batch_size, message_length + self.conv_channels + 3, self.H, self.W)。
         concat = torch.cat([expanded_message, encoded_image, image], dim=1)
 
-        im_w = self.after_concat_layer(concat)
+        im_w = self.mdfa(concat)
+        # im_w = self.after_concat_layer(concat)
+
         im_w = self.final_layer(im_w)
         return im_w

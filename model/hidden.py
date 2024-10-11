@@ -22,8 +22,8 @@ class Hidden:
 
         self.encoder_decoder = EncoderDecoder(configuration, noiser).to(device)
         self.discriminator = Discriminator(configuration).to(device)
-        self.optimizer_enc_dec = torch.optim.Adam(self.encoder_decoder.parameters())
-        self.optimizer_discrim = torch.optim.Adam(self.discriminator.parameters())
+        self.optimizer_enc_dec = torch.optim.Adam(self.encoder_decoder.parameters(), eps=1e-4)
+        self.optimizer_discrim = torch.optim.Adam(self.discriminator.parameters(), eps=1e-4)
 
         if configuration.use_vgg:
             self.vgg_loss = VGGLoss(3, 1, False)

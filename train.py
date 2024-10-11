@@ -39,7 +39,8 @@ def train(model: Hidden,
     print_each = 10
     images_to_save = 8
     saved_images_size = (512, 512)
-
+    # 启用自动微分异常检测
+    torch.autograd.set_detect_anomaly(True)
     for epoch in range(train_options.start_epoch, train_options.number_of_epochs + 1):
         logging.info('\nStarting epoch {}/{}'.format(epoch, train_options.number_of_epochs))
         logging.info('Batch size = {}\nSteps in epoch = {}'.format(train_options.batch_size, steps_in_epoch))

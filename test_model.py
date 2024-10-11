@@ -25,11 +25,11 @@ def main():
         device = torch.device('cpu')
 
     parser = argparse.ArgumentParser(description='Test trained models')
-    parser.add_argument('--options-file', '-o', default='experiments/no-noise adam-eps-1e-4/options-and-config.pickle', type=str,
+    parser.add_argument('--options-file', '-o', default='D:\\workspace\\watermark\\服务器\\实验结果\\mdfa_no_noise_32 2024.09.07--18-32-47\\options-and-config.pickle', type=str,
                         help='The file where the simulation options are stored.')
-    parser.add_argument('--checkpoint-file', '-c', default='experiments/no-noise adam-eps-1e-4/checkpoints/no-noise--epoch-200.pyt', type=str, help='Model checkpoint file')
+    parser.add_argument('--checkpoint-file', '-c', default='D:\\workspace\\watermark\\服务器\\实验结果\\mdfa_no_noise_32 2024.09.07--18-32-47\\checkpoints\\mdfa_no_noise_32--epoch-200.pyt', type=str, help='Model checkpoint file')
     parser.add_argument('--batch-size', '-b', default=12, type=int, help='The batch size.')
-    parser.add_argument('--source-image', '-s', default='test.png', type=str,
+    parser.add_argument('--source-image', '-s', default='PixPin_2024-09-10_15-31-43.png', type=str,
                         help='The image to watermark')
     # parser.add_argument('--times', '-t', default=10, type=int,
     #                     help='Number iterations (insert watermark->extract).')

@@ -10,7 +10,9 @@ class ConvBNRelu(nn.Module):
         
         self.layers = nn.Sequential(
             nn.Conv2d(channels_in, channels_out, 3, stride, padding=1),
+            # 加速训练、减少梯度消失，梯度爆炸
             nn.BatchNorm2d(channels_out),
+            # 引入非线性变换、拟合复杂的非线性关系
             nn.ReLU(inplace=True)
         )
 
