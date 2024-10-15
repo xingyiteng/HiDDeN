@@ -37,11 +37,12 @@ def main():
 
     train_options, hidden_config, noise_config = utils.load_options(args.options_file)
 
-    # 修改noise_config，添加Crop噪声层
-    if isinstance(noise_config, list):
-        noise_config.append(Crop((0.4, 0.55), (0.4, 0.55)))  # 添加Crop噪声层
-    else:
-        noise_config = [noise_config, Crop((0.4, 0.55), (0.4, 0.55))]  # 创建包含原有噪声和Crop噪声的列表
+    # 如果是组合噪声，需要重新修改noise_config，如果是单层噪声，注释以下代码
+    noise_config = [Crop((0.4, 0.55), (0.4, 0.55))]
+    # noise_config = [Cropout((0.55, 0.6), (0.55, 0.6))]
+    # noise_config = [Dropout((0.55, 0.6))]
+    # noise_config = [Resize((0.7, 0.8))]
+    # noise_config = ['JpegPlaceholder']
 
     # 使用修改后的noise_config创建Noiser
     noiser = Noiser(noise_config, device)
