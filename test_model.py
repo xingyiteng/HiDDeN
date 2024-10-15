@@ -30,8 +30,8 @@ def main():
                         help='The file where the simulation options are stored.')
     parser.add_argument('--checkpoint-file', '-c', default='experiments/no-noise adam-eps-1e-4/checkpoints/no-noise--epoch-200.pyt', type=str, help='Model checkpoint file')
     parser.add_argument('--batch-size', '-b', default=12, type=int, help='The batch size.')
-    parser.add_argument('--source-image', '-s', default='test.png', type=str,
-                        help='The image to watermark')
+    parser.add_argument('--source-dir', '-s', default='D:\\workspace\\watermark\\DataSet\\COCO\\data\\test', type=str,
+                        help='The directory containing images to watermark')
     # parser.add_argument('--times', '-t', default=10, type=int,
     #                     help='Number iterations (insert watermark->extract).')
 
