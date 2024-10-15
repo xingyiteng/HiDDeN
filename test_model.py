@@ -6,8 +6,11 @@ from PIL import Image
 from SSIM import SSIM
 import utils
 from model.hidden import *
+from noise_layers.cropout import Cropout
+from noise_layers.dropout import Dropout
 from noise_layers.noiser import Noiser
 from noise_layers.crop import Crop
+from noise_layers.resize import Resize
 
 
 def randomCrop(img, height, width):
@@ -15,7 +18,7 @@ def randomCrop(img, height, width):
     assert img.shape[1] >= width
     x = np.random.randint(0, img.shape[1] - width)
     y = np.random.randint(0, img.shape[0] - height)
-    img = img[y:y+height, x:x+width]
+    img = img[y:y + height, x:x + width]
     return img
 
 
@@ -26,24 +29,23 @@ def main():
         device = torch.device('cpu')
 
     parser = argparse.ArgumentParser(description='Test trained models')
-    parser.add_argument('--options-file', '-o', default='experiments/no-noise adam-eps-1e-4/options-and-config.pickle', type=str,
+    parser.add_argument('--options-file', '-o', default='D:\\workspace\\watermark\\服务器\\实验结果\\origin_no_noise\\options-and-config.pickle', type=str,
                         help='The file where the simulation options are stored.')
-    parser.add_argument('--checkpoint-file', '-c', default='experiments/no-noise adam-eps-1e-4/checkpoints/no-noise--epoch-200.pyt', type=str, help='Model checkpoint file')
+    parser.add_argument('--checkpoint-file', '-c', default='D:\\workspace\\watermark\\服务器\\实验结果\\origin_no_noise\\checkpoints\\origin--epoch-200.pyt', type=str, help='Model checkpoint file')
     parser.add_argument('--batch-size', '-b', default=12, type=int, help='The batch size.')
     parser.add_argument('--source-dir', '-s', default='D:\\workspace\\watermark\\DataSet\\COCO\\data\\test', type=str,
                         help='The directory containing images to watermark')
-    # parser.add_argument('--times', '-t', default=10, type=int,
-    #                     help='Number iterations (insert watermark->extract).')
 
     args = parser.parse_args()
 
     train_options, hidden_config, noise_config = utils.load_options(args.options_file)
 
-    # 修改noise_config，添加Crop噪声层
-    if isinstance(noise_config, list):
-        noise_config.append(Crop((0.4, 0.55), (0.4, 0.55)))  # 添加Crop噪声层
-    else:
-        noise_config = [noise_config, Crop((0.4, 0.55), (0.4, 0.55))]  # 创建包含原有噪声和Crop噪声的列表
+    # 如果是组合噪声，需要重新修改noise_config，如果是单层噪声，注释以下代码
+    noise_config = [Crop((0.4, 0.55), (0.4, 0.55))]
+    # noise_config = [Cropout((0.55, 0.6), (0.55, 0.6))]
+    # noise_config = [Dropout((0.55, 0.6))]
+    # noise_config = [Resize((0.7, 0.8))]
+    # noise_config = ['JpegPlaceholder']
 
     # 使用修改后的noise_config创建Noiser
     noiser = Noiser(noise_config, device)
@@ -78,8 +80,9 @@ def main():
                 image_tensor = image_tensor.repeat(1, 3, 1, 1)
 
             message = torch.Tensor(np.random.choice([0, 1], (image_tensor.shape[0],
-                                                            hidden_config.message_length))).to(device)
-            losses, (encoded_images, noised_images, decoded_messages) = hidden_net.validate_on_batch([image_tensor, message])
+                                                             hidden_config.message_length))).to(device)
+            losses, (encoded_images, noised_images, decoded_messages) = hidden_net.validate_on_batch(
+                [image_tensor, message])
             decoded_rounded = decoded_messages.detach().cpu().numpy().round().clip(0, 1)
             message_detached = message.detach().cpu().numpy()
 
@@ -108,6 +111,7 @@ def main():
     print(f'Average Correct Bit Rate : {1 - avg_ber:.3f}')
     print(f'Average PSNR : {avg_psnr:.3f}')
     print(f'Average SSIM : {avg_ssim:.3f}')
+
 
 if __name__ == '__main__':
     main()
