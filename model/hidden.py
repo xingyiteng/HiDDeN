@@ -8,6 +8,8 @@ from model.discriminator import Discriminator
 from model.encoder_decoder import EncoderDecoder
 from vgg_loss import VGGLoss
 from noise_layers.noiser import Noiser
+from model.discriminator_message import discriminator_message
+import torch.nn.functional as F
 
 
 class Hidden:
@@ -24,6 +26,8 @@ class Hidden:
         self.discriminator = Discriminator(configuration).to(device)
         self.optimizer_enc_dec = torch.optim.Adam(self.encoder_decoder.parameters(), eps=1e-4)
         self.optimizer_discrim = torch.optim.Adam(self.discriminator.parameters(), eps=1e-4)
+        self.discriminator_message = discriminator_message().to(device)
+        self.optimizer_discrim_message = torch.optim.Adam(self.discriminator_message.parameters(), lr=1e-4)
 
         if configuration.use_vgg:
             self.vgg_loss = VGGLoss(3, 1, False)
@@ -40,6 +44,7 @@ class Hidden:
         self.mse_loss = nn.MSELoss().to(device)
 
         self.ssim_weight = 0.1
+        self.discriminator_message_weight = 0.2
         # Defined the labels used for training the discriminator/adversarial loss
         self.cover_label = 1
         self.encoded_label = 0
@@ -65,51 +70,60 @@ class Hidden:
         batch_size = images.shape[0]
         self.encoder_decoder.train()
         self.discriminator.train()
+        self.discriminator_message.train()
         with torch.enable_grad():
-            # ---------------- Train the discriminator -----------------------------
+            # 清除所有优化器的梯度
+            self.optimizer_enc_dec.zero_grad()
             self.optimizer_discrim.zero_grad()
-            # train on cover
-            d_target_label_cover = torch.full((batch_size, 1), self.cover_label, device=self.device)
-            d_target_label_cover = d_target_label_cover.float()
-            d_target_label_encoded = torch.full((batch_size, 1), self.encoded_label, device=self.device)
-            d_target_label_encoded = d_target_label_encoded.float()
-            g_target_label_encoded = torch.full((batch_size, 1), self.cover_label, device=self.device)
-            g_target_label_encoded = g_target_label_encoded.float()
+            self.optimizer_discrim_message.zero_grad()
 
+            # 前向传播
+            encoded_images, noised_images, decoded_messages = self.encoder_decoder(images, messages)
+
+            # 计算所有损失
+            d_target_label_cover = torch.full((batch_size, 1), self.cover_label, device=self.device).float()
+            d_target_label_encoded = torch.full((batch_size, 1), self.encoded_label, device=self.device).float()
+            d_target_label_real = torch.ones((batch_size, 1), device=self.device)
+            d_target_label_fake = torch.zeros((batch_size, 1), device=self.device)
+
+            # 图像判别器损失
             d_on_cover = self.discriminator(images)
             d_loss_on_cover = self.bce_with_logits_loss(d_on_cover, d_target_label_cover)
-            d_loss_on_cover.backward()
-
-            # train on fake
-            encoded_images, noised_images, decoded_messages = self.encoder_decoder(images, messages)
             d_on_encoded = self.discriminator(encoded_images.detach())
             d_loss_on_encoded = self.bce_with_logits_loss(d_on_encoded, d_target_label_encoded)
 
-            d_loss_on_encoded.backward()
-            self.optimizer_discrim.step()
+            # 消息判别器损失
+            d_on_real_messages = self.discriminator_message(messages)
+            # d_loss_on_real = self.bce_with_logits_loss(d_on_real_messages, d_target_label_real)
+            d_loss_on_real = F.binary_cross_entropy_with_logits(d_on_real_messages, d_target_label_real)
+            d_on_decoded = self.discriminator_message(decoded_messages.detach())
+            # d_loss_on_decoded = self.bce_with_logits_loss(d_on_decoded, d_target_label_fake)
+            d_loss_on_decoded = F.binary_cross_entropy_with_logits(d_on_decoded, d_target_label_fake)
 
-            # --------------Train the generator (encoder-decoder) ---------------------
-            self.optimizer_enc_dec.zero_grad()
-            # target label for encoded images should be 'cover', because we want to fool the discriminator
+            # 生成器损失
             d_on_encoded_for_enc = self.discriminator(encoded_images)
-            g_loss_adv = self.bce_with_logits_loss(d_on_encoded_for_enc, g_target_label_encoded)
-
-            if self.vgg_loss == None:
-                # 编码图像的均方误差
-                g_loss_enc = self.mse_loss(encoded_images, images)
-            else:
-                vgg_on_cov = self.vgg_loss(images)
-                vgg_on_enc = self.vgg_loss(encoded_images)
-                g_loss_enc = self.mse_loss(vgg_on_cov, vgg_on_enc)
-            # 计算结构相似性
+            g_loss_adv = self.bce_with_logits_loss(d_on_encoded_for_enc, d_target_label_cover)
+            g_loss_enc = self.mse_loss(encoded_images, images) if self.vgg_loss is None else self.mse_loss(
+                self.vgg_loss(images), self.vgg_loss(encoded_images))
             g_loss_enc_ssim = self.ssim_loss(encoded_images, images)
-            # 解码消息的均方误差
             g_loss_dec = self.mse_loss(decoded_messages, messages)
-            g_loss = self.config.adversarial_loss * g_loss_adv + self.ssim_weight * (
-                        1 - g_loss_enc_ssim) + self.config.encoder_loss * g_loss_enc \
-                     + self.config.decoder_loss * g_loss_dec
+            d_on_decoded_for_gen = self.discriminator_message(decoded_messages)
+            # g_loss_d = self.bce_with_logits_loss(d_on_decoded_for_gen, d_target_label_real)
+            g_loss_d = F.binary_cross_entropy_with_logits(d_on_decoded_for_gen, d_target_label_real)
 
+            # 计算总损失
+            d_loss = d_loss_on_cover + d_loss_on_encoded + d_loss_on_real + d_loss_on_decoded
+            g_loss = self.config.adversarial_loss * g_loss_adv + self.ssim_weight * (1 - g_loss_enc_ssim) + \
+                     self.config.encoder_loss * g_loss_enc + self.config.decoder_loss * g_loss_dec + \
+                     g_loss_d * self.discriminator_message_weight
+
+            # 反向传播
+            d_loss.backward()
             g_loss.backward()
+
+            # 更新参数
+            self.optimizer_discrim.step()
+            self.optimizer_discrim_message.step()
             self.optimizer_enc_dec.step()
 
         decoded_rounded = decoded_messages.detach().cpu().numpy().round().clip(0, 1)
@@ -124,7 +138,10 @@ class Hidden:
             'adversarial_bce': g_loss_adv.item(),
             'discr_cover_bce': d_loss_on_cover.item(),
             'discr_encod_bce': d_loss_on_encoded.item(),
-            'encoded_ssim   ': g_loss_enc_ssim.item()
+            'encoded_ssim   ': g_loss_enc_ssim.item(),
+            'discrim_message_real': d_loss_on_real.item(),
+            'discrim_message_fake': d_loss_on_decoded.item(),
+            'message_bce    ': g_loss_d.item()
         }
         return losses, (encoded_images, noised_images, decoded_messages)
 
@@ -144,41 +161,49 @@ class Hidden:
             self.tb_logger.add_tensor('weights/discrim_out', discrim_final.weight)
 
         images, messages = batch
-
         batch_size = images.shape[0]
 
         self.encoder_decoder.eval()
         self.discriminator.eval()
+        self.discriminator_message.eval()
+
         with torch.no_grad():
-            d_target_label_cover = torch.full((batch_size, 1), self.cover_label, device=self.device)
-            d_target_label_cover = d_target_label_cover.float()
-            d_target_label_encoded = torch.full((batch_size, 1), self.encoded_label, device=self.device)
-            d_target_label_encoded = d_target_label_encoded.float()
-            g_target_label_encoded = torch.full((batch_size, 1), self.cover_label, device=self.device)
-            g_target_label_encoded = g_target_label_encoded.float()
+            # 设置目标标签
+            d_target_label_cover = torch.full((batch_size, 1), self.cover_label, device=self.device).float()
+            d_target_label_encoded = torch.full((batch_size, 1), self.encoded_label, device=self.device).float()
+            d_target_label_real = torch.ones((batch_size, 1), device=self.device)
+            d_target_label_fake = torch.zeros((batch_size, 1), device=self.device)
 
-            d_on_cover = self.discriminator(images)
-            d_loss_on_cover = self.bce_with_logits_loss(d_on_cover, d_target_label_cover)
-
+            # 前向传播
             encoded_images, noised_images, decoded_messages = self.encoder_decoder(images, messages)
 
+            # 图像判别器损失
+            d_on_cover = self.discriminator(images)
+            d_loss_on_cover = self.bce_with_logits_loss(d_on_cover, d_target_label_cover)
             d_on_encoded = self.discriminator(encoded_images)
             d_loss_on_encoded = self.bce_with_logits_loss(d_on_encoded, d_target_label_encoded)
 
-            d_on_encoded_for_enc = self.discriminator(encoded_images)
-            g_loss_adv = self.bce_with_logits_loss(d_on_encoded_for_enc, g_target_label_encoded)
-            g_loss_enc_ssim = self.ssim_loss(images, encoded_images)
-            if self.vgg_loss is None:
-                g_loss_enc = self.mse_loss(encoded_images, images)
-            else:
-                vgg_on_cov = self.vgg_loss(images)
-                vgg_on_enc = self.vgg_loss(encoded_images)
-                g_loss_enc = self.mse_loss(vgg_on_cov, vgg_on_enc)
+            # 消息判别器损失
+            d_on_real_messages = self.discriminator_message(messages)
+            d_loss_on_real = F.binary_cross_entropy_with_logits(d_on_real_messages, d_target_label_real)
+            d_on_decoded = self.discriminator_message(decoded_messages)
+            d_loss_on_decoded = F.binary_cross_entropy_with_logits(d_on_decoded, d_target_label_fake)
 
+            # 生成器损失
+            d_on_encoded_for_enc = self.discriminator(encoded_images)
+            g_loss_adv = self.bce_with_logits_loss(d_on_encoded_for_enc, d_target_label_cover)
+            g_loss_enc = self.mse_loss(encoded_images, images) if self.vgg_loss is None else self.mse_loss(
+                self.vgg_loss(images), self.vgg_loss(encoded_images))
+            g_loss_enc_ssim = self.ssim_loss(encoded_images, images)
             g_loss_dec = self.mse_loss(decoded_messages, messages)
-            g_loss = self.config.adversarial_loss * g_loss_adv + self.ssim_weight * (
-                        1 - g_loss_enc_ssim) + self.config.encoder_loss * g_loss_enc \
-                     + self.config.decoder_loss * g_loss_dec
+            d_on_decoded_for_gen = self.discriminator_message(decoded_messages)
+            g_loss_d = F.binary_cross_entropy_with_logits(d_on_decoded_for_gen, d_target_label_real)
+
+            # 计算总损失
+            d_loss = d_loss_on_cover + d_loss_on_encoded + d_loss_on_real + d_loss_on_decoded
+            g_loss = self.config.adversarial_loss * g_loss_adv + self.ssim_weight * (1 - g_loss_enc_ssim) + \
+                     self.config.encoder_loss * g_loss_enc + self.config.decoder_loss * g_loss_dec + \
+                     g_loss_d * self.discriminator_message_weight
 
         decoded_rounded = decoded_messages.detach().cpu().numpy().round().clip(0, 1)
         bitwise_avg_err = np.sum(np.abs(decoded_rounded - messages.detach().cpu().numpy())) / (
@@ -193,8 +218,11 @@ class Hidden:
             'discr_cover_bce': d_loss_on_cover.item(),
             'discr_encod_bce': d_loss_on_encoded.item(),
             'encoded_ssim   ': g_loss_enc_ssim.item(),
+            'discrim_message_real': d_loss_on_real.item(),
+            'discrim_message_fake': d_loss_on_decoded.item(),
+            'message_bce    ': g_loss_d.item(),
             'PSNR           ': 10 * torch.log10(4 / g_loss_enc).item(),
-            'SSIM           ': g_loss_enc_ssim
+            'SSIM           ': g_loss_enc_ssim.item()
         }
         return losses, (encoded_images, noised_images, decoded_messages)
 

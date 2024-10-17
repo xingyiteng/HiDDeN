@@ -1,6 +1,7 @@
 import torch.nn as nn
 from model.encoder import Encoder
 from model.decoder import Decoder
+from model.generator import Generator
 from options import HiDDenConfiguration
 from noise_layers.noiser import Noiser
 
@@ -20,10 +21,11 @@ class EncoderDecoder(nn.Module):
         self.noiser = noiser
 
         self.decoder = Decoder(config)
-
+        self.generator = Generator(3, 3)
     def forward(self, image, message):
         encoded_image = self.encoder(image, message)
-        noised_and_cover = self.noiser([encoded_image, image])
-        noised_image = noised_and_cover[0]
+        # noised_and_cover = self.noiser([encoded_image, image])
+        # noised_image = noised_and_cover[0]
+        noised_image = self.generator(encoded_image)
         decoded_message = self.decoder(noised_image)
         return encoded_image, noised_image, decoded_message

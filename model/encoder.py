@@ -45,8 +45,8 @@ class Encoder(nn.Module):
         # concat 的形状将是 (batch_size, message_length + self.conv_channels + 3, self.H, self.W)。
         concat = torch.cat([expanded_message, encoded_image, image], dim=1)
 
-        im_w = self.mdfa(concat)
-        # im_w = self.after_concat_layer(concat)
+        # im_w = self.mdfa(concat)
+        im_w = self.after_concat_layer(concat)
 
         im_w = self.final_layer(im_w)
         return im_w
