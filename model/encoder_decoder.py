@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from model.encoder import Encoder
 from model.decoder import Decoder
@@ -26,6 +27,7 @@ class EncoderDecoder(nn.Module):
         encoded_image = self.encoder(image, message)
         # noised_and_cover = self.noiser([encoded_image, image])
         # noised_image = noised_and_cover[0]
-        noised_image = self.generator(encoded_image)
+        noised_example = self.generator(encoded_image)
+        noised_image = torch.clamp(noised_example, -0.3, 0.3) + encoded_image
         decoded_message = self.decoder(noised_image)
         return encoded_image, noised_image, decoded_message

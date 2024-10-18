@@ -94,11 +94,11 @@ class Hidden:
 
             # 消息判别器损失
             d_on_real_messages = self.discriminator_message(messages)
-            # d_loss_on_real = self.bce_with_logits_loss(d_on_real_messages, d_target_label_real)
-            d_loss_on_real = F.binary_cross_entropy_with_logits(d_on_real_messages, d_target_label_real)
+            d_loss_on_real = self.bce_with_logits_loss(d_on_real_messages, d_target_label_real)
+            # d_loss_on_real = F.binary_cross_entropy_with_logits(d_on_real_messages, d_target_label_real)
             d_on_decoded = self.discriminator_message(decoded_messages.detach())
-            # d_loss_on_decoded = self.bce_with_logits_loss(d_on_decoded, d_target_label_fake)
-            d_loss_on_decoded = F.binary_cross_entropy_with_logits(d_on_decoded, d_target_label_fake)
+            d_loss_on_decoded = self.bce_with_logits_loss(d_on_decoded, d_target_label_fake)
+            # d_loss_on_decoded = F.binary_cross_entropy_with_logits(d_on_decoded, d_target_label_fake)
 
             # 生成器损失
             d_on_encoded_for_enc = self.discriminator(encoded_images)
@@ -108,8 +108,8 @@ class Hidden:
             g_loss_enc_ssim = self.ssim_loss(encoded_images, images)
             g_loss_dec = self.mse_loss(decoded_messages, messages)
             d_on_decoded_for_gen = self.discriminator_message(decoded_messages)
-            # g_loss_d = self.bce_with_logits_loss(d_on_decoded_for_gen, d_target_label_real)
-            g_loss_d = F.binary_cross_entropy_with_logits(d_on_decoded_for_gen, d_target_label_real)
+            g_loss_d = self.bce_with_logits_loss(d_on_decoded_for_gen, d_target_label_real)
+            # g_loss_d = F.binary_cross_entropy_with_logits(d_on_decoded_for_gen, d_target_label_real)
 
             # 计算总损失
             d_loss = d_loss_on_cover + d_loss_on_encoded + d_loss_on_real + d_loss_on_decoded
@@ -185,9 +185,9 @@ class Hidden:
 
             # 消息判别器损失
             d_on_real_messages = self.discriminator_message(messages)
-            d_loss_on_real = F.binary_cross_entropy_with_logits(d_on_real_messages, d_target_label_real)
+            d_loss_on_real = self.bce_with_logits_loss(d_on_real_messages, d_target_label_real)
             d_on_decoded = self.discriminator_message(decoded_messages)
-            d_loss_on_decoded = F.binary_cross_entropy_with_logits(d_on_decoded, d_target_label_fake)
+            d_loss_on_decoded = self.bce_with_logits_loss(d_on_decoded, d_target_label_fake)
 
             # 生成器损失
             d_on_encoded_for_enc = self.discriminator(encoded_images)
@@ -197,7 +197,7 @@ class Hidden:
             g_loss_enc_ssim = self.ssim_loss(encoded_images, images)
             g_loss_dec = self.mse_loss(decoded_messages, messages)
             d_on_decoded_for_gen = self.discriminator_message(decoded_messages)
-            g_loss_d = F.binary_cross_entropy_with_logits(d_on_decoded_for_gen, d_target_label_real)
+            g_loss_d = self.bce_with_logits_loss(d_on_decoded_for_gen, d_target_label_real)
 
             # 计算总损失
             d_loss = d_loss_on_cover + d_loss_on_encoded + d_loss_on_real + d_loss_on_decoded
