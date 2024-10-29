@@ -3,6 +3,10 @@ import torch.nn as nn
 from noise_layers.identity import Identity
 from noise_layers.jpeg_compression import JpegCompression
 from noise_layers.quantization import Quantization
+from noise_layers.crop import Crop
+from noise_layers.cropout import Cropout
+from noise_layers.dropout import Dropout
+from noise_layers.resize import Resize
 
 
 class Noiser(nn.Module):
@@ -14,7 +18,22 @@ class Noiser(nn.Module):
         super(Noiser, self).__init__()
         self.noise_layers = [Identity()]
         for layer in noise_layers:
-            if type(layer) is str:
+            if isinstance(layer, dict):
+                # 处理字典配置
+                if layer['type'].lower() == 'crop':
+                    self.noise_layers.append(Crop(layer.get('height_ratios', (0.2, 0.25)), layer.get('width_ratios', (0.2, 0.25))))
+                elif layer['type'].lower() == 'cropout':
+                    self.noise_layers.append(Cropout(layer.get('height_ratios', (0.2, 0.25)), layer.get('width_ratios', (0.2, 0.25))))
+                elif layer['type'].lower() == 'dropout':
+                    self.noise_layers.append(Dropout(layer.get('ratios', (0.5, 0.5))))
+                elif layer['type'].lower() == 'resize':
+                    self.noise_layers.append(Resize(layer.get('ratios', (0.7, 0.8))))
+                elif layer['type'].lower() == 'jpeg_compression':
+                    self.noise_layers.append(JpegCompression(device))
+                else:
+                    raise ValueError(f"Unknown noise type: {layer['type']}")
+            elif isinstance(layer, str):
+                # 处理字符串配置
                 if layer == 'JpegPlaceholder':
                     self.noise_layers.append(JpegCompression(device))
                 elif layer == 'QuantizationPlaceholder':
@@ -27,6 +46,7 @@ class Noiser(nn.Module):
         # self.noise_layers = nn.Sequential(*noise_layers)
 
     def forward(self, encoded_and_cover):
-        random_noise_layer = np.random.choice(self.noise_layers, 1)[0]
-        return random_noise_layer(encoded_and_cover)
+        # random_noise_layer = np.random.choice(self.noise_layers, 1)[0]
+        # return random_noise_layer(encoded_and_cover)
+        return self.noise_layers[5](encoded_and_cover)
 

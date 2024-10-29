@@ -6,11 +6,7 @@ from PIL import Image
 from SSIM import SSIM
 import utils
 from model.hidden import *
-from noise_layers.cropout import Cropout
-from noise_layers.dropout import Dropout
 from noise_layers.noiser import Noiser
-from noise_layers.crop import Crop
-from noise_layers.resize import Resize
 
 
 def randomCrop(img, height, width):
@@ -29,11 +25,11 @@ def main():
         device = torch.device('cpu')
 
     parser = argparse.ArgumentParser(description='Test trained models')
-    parser.add_argument('--options-file', '-o', default='D:\\workspace\\watermark\\服务器\\实验结果\\origin_no_noise\\options-and-config.pickle', type=str,
+    parser.add_argument('--options-file', '-o', default='experiments/combined-noise/options-and-config.pickle', type=str,
                         help='The file where the simulation options are stored.')
-    parser.add_argument('--checkpoint-file', '-c', default='D:\\workspace\\watermark\\服务器\\实验结果\\origin_no_noise\\checkpoints\\origin--epoch-200.pyt', type=str, help='Model checkpoint file')
+    parser.add_argument('--checkpoint-file', '-c', default='experiments/combined-noise/checkpoints/combined-noise--epoch-400.pyt', type=str, help='Model checkpoint file')
     parser.add_argument('--batch-size', '-b', default=12, type=int, help='The batch size.')
-    parser.add_argument('--source-dir', '-s', default='D:\\workspace\\watermark\\DataSet\\COCO\\data\\test', type=str,
+    parser.add_argument('--source-dir', '-s', default='D:\\workspace\\watermark\\DataSet\\COCO\\data\\test\\test_class', type=str,
                         help='The directory containing images to watermark')
 
     args = parser.parse_args()
@@ -41,7 +37,8 @@ def main():
     train_options, hidden_config, noise_config = utils.load_options(args.options_file)
 
     # 如果是组合噪声，需要重新修改noise_config，如果是单层噪声，注释以下代码
-    noise_config = [Crop((0.4, 0.55), (0.4, 0.55))]
+    # noise_config = [Salt_and_Pepper(0.05)]
+    # noise_config = [Crop((0.4, 0.55), (0.4, 0.55))]
     # noise_config = [Cropout((0.55, 0.6), (0.55, 0.6))]
     # noise_config = [Dropout((0.55, 0.6))]
     # noise_config = [Resize((0.7, 0.8))]
@@ -111,7 +108,6 @@ def main():
     print(f'Average Correct Bit Rate : {1 - avg_ber:.3f}')
     print(f'Average PSNR : {avg_psnr:.3f}')
     print(f'Average SSIM : {avg_ssim:.3f}')
-
 
 if __name__ == '__main__':
     main()
