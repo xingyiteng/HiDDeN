@@ -1,3 +1,4 @@
+import torch
 import torch.nn as nn
 from options import HiDDenConfiguration
 from model.conv_bn_relu import ConvBNRelu
@@ -25,3 +26,37 @@ class Discriminator(nn.Module):
         X = self.linear(X)
         # X = torch.sigmoid(X)
         return X
+
+if __name__ == '__main__':
+    from torchinfo import summary
+    from options import HiDDenConfiguration
+
+    # 创建配置对象
+    config = HiDDenConfiguration(
+        H=128,
+        W=128,
+        encoder_channels=64,
+        encoder_blocks=4,
+        decoder_channels=64,
+        decoder_blocks=7,
+        message_length=30,
+        use_discriminator=True,
+        use_vgg=False,
+        discriminator_channels=64,
+        discriminator_blocks=3,
+        decoder_loss=1,
+        encoder_loss=1,
+        adversarial_loss=1
+    )
+
+    # 创建模型并移至设备
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = Discriminator(config).to(device)
+
+    # 使用torchinfo的summary
+    summary(
+        model,
+        input_size=[(1, 3, 128, 128)],  # 判别器只需要图像输入
+        device=device,
+        col_names=["input_size", "output_size", "num_params", "kernel_size", "mult_adds"],
+    )
