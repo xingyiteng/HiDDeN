@@ -7,9 +7,13 @@ from PIL import Image
 
 import utils
 from model.hidden import *
+from noise_layers.blur import Blur
 from noise_layers.crop import Crop
 from noise_layers.cropout import Cropout
+from noise_layers.gaussian_noise import Gaussian_Noise
+from noise_layers.hue import Hue
 from noise_layers.noiser import Noiser
+from noise_layers.sat import Sat
 
 
 def randomCrop(img, height, width):
@@ -28,9 +32,9 @@ def main():
         device = torch.device('cpu')
 
     parser = argparse.ArgumentParser(description='Test trained models')
-    parser.add_argument('--options-file', '-o', default='mdfa/identity/options-and-config.pickle', type=str,
+    parser.add_argument('--options-file', '-o', default='mdfa/combined/options-and-config.pickle', type=str,
                         help='The file where the simulation options are stored.')
-    parser.add_argument('--checkpoint-file', '-c', default='mdfa/identity/mdfa_no_noise_32--epoch-200.pyt', type=str, help='Model checkpoint file')
+    parser.add_argument('--checkpoint-file', '-c', default='mdfa/combined/mdfa_combined-noise_32--epoch-400.pyt', type=str, help='Model checkpoint file')
     parser.add_argument('--batch-size', '-b', default=12, type=int, help='The batch size.')
     parser.add_argument('--source-dir', '-s', default='D:\\workspace\\watermark\\DataSet\\COCO\\data\\test\\test_class', type=str,
                         help='The directory containing images to watermark')
@@ -40,7 +44,7 @@ def main():
     train_options, hidden_config, noise_config = utils.load_options(args.options_file)
 
     # 如果是组合噪声，需要重新修改noise_config，如果是单层噪声，注释以下代码
-    noise_config = [Crop((0.187, 0.187), (0.187, 0.187))]
+    # noise_config = [Crop((0.187, 0.187), (0.187, 0.187))]
     # noise_config = [Cropout((0.5, 0.5), (0.5, 0.5))]
     # noise_config = [Dropout((0.5, 0.5))]
     # noise_config = [Resize((0.8, 0.8))]
@@ -49,6 +53,7 @@ def main():
     #     Cropout((0.5, 0.5), (0.5, 0.5)),
     #     Crop((0.4, 0.4), (0.4, 0.4))
     # ]
+    noise_config = [Hue()]
 
     # 使用修改后的noise_config创建Noiser
     noiser = Noiser(noise_config, device)
